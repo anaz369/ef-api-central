@@ -1,0 +1,40 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /var/www/ef-api-central
+
+            # Pull latest code
+            git pull origin master
+
+            # Install/update dependencies
+            composer install --no-dev --optimize-autoloader --no-interaction
+
+            # Run any new migrations
+            php8.2 spark migrate --all -n
+
+            # Fix writable directory permissions
+            sudo chown -R www-data:www-data writable/
+            sudo chmod -R 775 writable/
+
+            # Reload PHP-FPM to clear opcache
+            sudo systemctl reload php8.2-fpm
+
+            echo "Deployment complete."
