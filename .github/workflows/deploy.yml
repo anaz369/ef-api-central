@@ -19,7 +19,7 @@ jobs:
           script: |
             set -e
 
-            cd /var/www/ef-api-central
+            cd /var/www/einvoicing
 
             # Pull latest code
             git pull origin master
