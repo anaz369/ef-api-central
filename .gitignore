@@ -1,0 +1,21 @@
+# Environment / secrets
+.env
+env
+
+# Vendor
+vendor/
+
+# Writable (cache, logs, sessions, uploads)
+writable/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Composer lock optional — keep for reproducibility
+# composer.lock
