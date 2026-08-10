@@ -27,12 +27,12 @@ jobs:
             # Install/update dependencies
             composer install --no-dev --optimize-autoloader --no-interaction
 
-            # Run any new migrations
-            php8.2 spark migrate --all
-
-            # Fix writable directory permissions
+            # Fix writable directory permissions before running spark
             sudo chown -R www-data:www-data writable/
             sudo chmod -R 775 writable/
+
+            # Run any new migrations
+            sudo -u www-data php8.2 spark migrate --all
 
             # Reload PHP-FPM to clear opcache
             sudo systemctl reload php8.2-fpm
