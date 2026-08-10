@@ -28,7 +28,7 @@ jobs:
             composer install --no-dev --optimize-autoloader --no-interaction
 
             # Run any new migrations
-            php8.2 spark migrate --all -n
+            php8.2 spark migrate --all
 
             # Fix writable directory permissions
             sudo chown -R www-data:www-data writable/
