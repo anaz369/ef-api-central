@@ -115,7 +115,7 @@ class Participants extends BaseAdminController
             }
         }
 
-        // Fetch Peppol identity from the shared ethicfin DB
+        // Fetch peppol identity from the shared ethicfin DB
         $peppolInfo = null;
         if ($participant['peppol_participant_id']) {
             $peppolInfo = $this->participantModel->getPeppolById((int) $participant['peppol_participant_id']);
