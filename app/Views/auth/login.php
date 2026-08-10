@@ -50,8 +50,8 @@
       </button>
     </form>
 
-    <div class="auth-footer" style="margin-top:16px;text-align:center;font-size:13px;color:var(--text-muted)">
-      Peppol Compliance Platform &mdash; <a href="https://ethicfin.com" target="_blank">Ethicfin</a>
+    <div style="margin-top:14px;text-align:center;font-size:13px;">
+      <a href="#" style="color:var(--text-muted);text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Forgot password?</a>
     </div>
   </div>
 </div>
