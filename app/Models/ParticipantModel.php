@@ -45,20 +45,20 @@ class ParticipantModel extends Model
         if (!$trn) return null;
         return $this->db->query(
             'SELECT id, peppol_id, entity_name_en, status
-               FROM ethicfin.tbl_peppol_participants
+               FROM tbl_peppol_participants
               WHERE vat_trn = ? LIMIT 1',
             [$trn]
         )->getRowArray() ?: null;
     }
 
     /**
-     * Fetch a Peppol participant record by its ID from the ethicfin DB.
+     * Fetch a Peppol participant record by its ID from the local DB.
      */
     public function getPeppolById(int $id): ?array
     {
         return $this->db->query(
             'SELECT id, peppol_id, entity_name_en, status, linked_at
-               FROM ethicfin.tbl_peppol_participants
+               FROM tbl_peppol_participants
               WHERE id = ? LIMIT 1',
             [$id]
         )->getRowArray() ?: null;
