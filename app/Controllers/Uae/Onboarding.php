@@ -353,11 +353,11 @@ class Onboarding extends BaseController
                 'data'    => [
                     'TIN'                => $tin,
                     'verificationStatus' => 'True',
-                    'legalType'          => 'LLC',
-                    'entityNameEn'       => 'Test Company LLC',
-                    'entityNameAr'       => 'شركة اختبار ذ.م.م',
+                    'legalType'          => 'Free Zone LLC',
+                    'entityNameEn'       => 'EF Intelligence L.L.C-FZ',
+                    'entityNameAr'       => 'إي إف إنتيليجنس ش.ذ.م.م',
                     'vatTrn'             => $tin,
-                    'effectiveDate'      => '2023-01-01',
+                    'effectiveDate'      => '2024-01-01',
                 ],
             ];
         }
