@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= isset($page_title) ? $page_title . ' | API Central' : 'API Central' ?></title>
+<title><?= isset($page_title) ? $page_title . ' | Ethicfin' : 'Ethicfin' ?></title>
+<link rel="icon" type="image/png" href="<?= base_url('assets/images/favicon.png') ?>">
 <script>(function(){try{var t=localStorage.getItem('theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=t||(d?'dark':'light');document.documentElement.setAttribute('data-theme',theme);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,9 +21,8 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 
 <aside class="sidebar" aria-label="Primary navigation">
-  <div class="sidebar-brand">
-    <div class="brand-icon">A</div>
-    <div class="brand-name">API Central <small>v1</small></div>
+  <div class="sidebar-brand" style="padding:16px 20px;">
+    <img src="<?= base_url('assets/images/ethicfin-logo-white.png') ?>" alt="Ethicfin" style="height:30px;max-width:160px;object-fit:contain;">
   </div>
   <nav class="sidebar-nav">
 

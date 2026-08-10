@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign In | API Central</title>
+<title>Sign In | Ethicfin</title>
+<link rel="icon" type="image/png" href="<?= base_url('assets/images/favicon.png') ?>">
 <script>(function(){try{var t=localStorage.getItem('theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=t||(d?'dark':'light');document.documentElement.setAttribute('data-theme',theme);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,9 +15,8 @@
 
 <div class="auth-page">
   <div class="auth-card">
-    <div class="auth-brand">
-      <div class="brand-icon">A</div>
-      <div class="brand-name">API Central <small style="font-weight:400;color:var(--text-muted);font-size:13px;margin-left:2px">v1</small></div>
+    <div class="auth-brand" style="justify-content:center;margin-bottom:8px;">
+      <img src="<?= base_url('assets/images/ethicfin-logo-white.png') ?>" alt="Ethicfin" style="height:36px;object-fit:contain;">
     </div>
 
     <div class="auth-title">Welcome back</div>
