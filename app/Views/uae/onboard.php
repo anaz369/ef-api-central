@@ -204,6 +204,11 @@
 const MODE           = '<?= ($mode ?? 'onboard') === 'reverify' ? 'reverify' : 'onboard' ?>';
 const EMARATAX_TOKEN = '<?= htmlspecialchars($emarataxToken ?? '') ?>';
 
+// Remove authcode / emarataxToken from the browser URL bar after page load
+if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+
 document.querySelectorAll('input[name="action_radio"]').forEach(function(r) {
     r.addEventListener('change', function() {
         var hid = document.getElementById('hid-selected_action');

@@ -29,8 +29,8 @@ class Onboarding extends BaseController
     // Our AP / ASP identity
     // -----------------------------------------------------------------------
     const AP_ENDPOINT          = 'https://as4.ethicfin.com/as4';
-    const ASP_NAME             = 'Ethicpro Intelligence Pvt Ltd';
-    const ASP_ACCREDITATION_NO = 'YOUR_OPENPEPPOL_ACCREDITATION_NUMBER';
+    const ASP_NAME             = 'Ethicfin';
+    const ASP_ACCREDITATION_NO = 'UAE_ACCREDITATION_NUMBER';
     const UAE_VAT_SCHEME       = '0235';
     const PEPPOL_ACTOR_SCHEME  = 'iso6523-actorid-upis';
 
@@ -73,16 +73,20 @@ class Onboarding extends BaseController
     }
 
     // -----------------------------------------------------------------------
-    // GET /uae/onboard?emarataxToken=XXX
-    // GET /uae/onboard?tin=XXX&emarataxToken=XXX
+    // GET /uae/onboard?authcode=XXX          (FTA redirect — preferred)
+    // GET /uae/onboard?emarataxToken=XXX     (legacy)
+    // GET /uae/onboard?tin=XXX&authcode=XXX
     // -----------------------------------------------------------------------
     public function onboard()
     {
-        $emarataxToken = $this->request->getGet('emarataxToken') ?? '';
-        $tin           = $this->request->getGet('tin') ?? '';
+        // FTA sends the token as "authcode"; keep emarataxToken as fallback
+        $emarataxToken = $this->request->getGet('authcode')
+                      ?? $this->request->getGet('emarataxToken')
+                      ?? '';
+        $tin           = $this->request->getGet('TIN') ?? '';
 
         if (empty($emarataxToken)) {
-            return view('uae/onboard', ['error' => 'Missing required parameter (emarataxToken).']);
+            return view('uae/onboard', ['error' => 'Missing required parameter (authcode).']);
         }
 
         $mode = empty($tin) ? 'onboard' : 'reverify';

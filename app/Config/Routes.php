@@ -72,7 +72,7 @@ $routes->get('invoices/(:num)',  'Admin\Invoices::view/$1');
 // API Logs (Admin)
 $routes->get('logs',             'Admin\ApiLogs::index');
 
-// UAE FTA Onboarding (public — no auth, token-based via emarataxToken)
+// UAE FTA Onboarding (public — no auth, FTA redirects with ?authcode=XXX)
 $routes->get('uae/onboard',                 'Uae\Onboarding::onboard');
 $routes->post('uae/ajax-verify',            'Uae\Onboarding::ajaxVerify');
 $routes->post('uae/confirm-onboard',        'Uae\Onboarding::confirmOnboard');
