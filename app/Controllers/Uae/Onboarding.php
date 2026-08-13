@@ -13,10 +13,29 @@ class Onboarding extends BaseController
     const TEST_MODE = true;
 
     // -----------------------------------------------------------------------
-    // FTA / GSB API
+    // FTA / GSB API — base URL
     // -----------------------------------------------------------------------
-    const FTA_BASE_URL  = 'https://api.gsb.government.ae/gateway/validateTaxPayerDetails_FTAX/1.0';
-    const FTA_GSB_TOKEN = 'YOUR_GSB_API_TOKEN_HERE';
+    const FTA_BASE_URL = 'https://api.gsb.government.ae/gateway/validateTaxPayerDetails_FTAX/1.0';
+
+    // -----------------------------------------------------------------------
+    // Header 1: GW-APIKey — static key issued via UAE API Marketplace
+    // -----------------------------------------------------------------------
+    const GSB_API_KEY = 'YOUR_GW_APIKEY_HERE';
+
+    // -----------------------------------------------------------------------
+    // Header 2: Authorization — OAuth2 Bearer token from GSB getAccessToken
+    // -----------------------------------------------------------------------
+    const GSB_TOKEN_URL     = 'https://api.gsb.government.ae/invoke/pub.apigateway.oauth2/getAccessToken';
+    const GSB_SCOPE         = '9b9346b3-5b18-11f0-a374-856a43324051';
+    const GSB_CLIENT_ID     = 'YOUR_GSB_CLIENT_ID_HERE';
+    const GSB_CLIENT_SECRET = 'YOUR_GSB_CLIENT_SECRET_HERE';
+
+    // -----------------------------------------------------------------------
+    // Header 3: CustomAuth — Bearer token from FTAX generateAccessToken_FTAX
+    // -----------------------------------------------------------------------
+    const FTAX_TOKEN_URL     = 'YOUR_FTAX_TOKEN_URL_HERE'; // e.g. from UAE API Marketplace portal
+    const FTAX_CLIENT_ID     = 'YOUR_FTAX_CLIENT_ID_HERE';
+    const FTAX_CLIENT_SECRET = 'YOUR_FTAX_CLIENT_SECRET_HERE';
 
     // -----------------------------------------------------------------------
     // phoss-SMP
@@ -280,7 +299,7 @@ class Onboarding extends BaseController
                 'aspName'               => self::ASP_NAME,
                 'aspAccrediationNumber' => self::ASP_ACCREDITATION_NO,
                 'reason'                => 'Customer requested PEPPOL deregistration',
-                'action'                => 2,
+                'action'                => 3, // 3 = Remove (delete)
             ]);
 
             $this->peppolModel->delinkParticipant($tin, date('Y-m-d H:i:s'));
@@ -317,7 +336,7 @@ class Onboarding extends BaseController
                 'aspName'               => self::ASP_NAME,
                 'aspAccrediationNumber' => self::ASP_ACCREDITATION_NO,
                 'reason'                => 'PEPPOL e-Invoicing re-verification',
-                'action'                => 1,
+                'action'                => 2, // 2 = Update (reverify)
             ]);
 
             $this->peppolModel->saveParticipant([
@@ -368,9 +387,25 @@ class Onboarding extends BaseController
             ];
         }
 
-        $url    = self::FTA_BASE_URL . '/api/prc/ects-einvoicing/v1/verifyenduser';
-        $body   = json_encode(['TIN' => $tin, 'email' => $email, 'mobile' => $mobile, 'emarataxToken' => $emarataxToken]);
-        $result = $this->httpPost($url, $body, ['Authorization: ' . self::FTA_GSB_TOKEN, 'Content-Type: application/json']);
+        $gsbToken  = $this->getGsbBearerToken();
+        $ftaxToken = $this->getFtaxBearerToken();
+
+        if (!$gsbToken) {
+            return ['success' => false, 'message' => 'Failed to obtain GSB authorization token. Please try again.'];
+        }
+        if (!$ftaxToken) {
+            return ['success' => false, 'message' => 'Failed to obtain FTAX authorization token. Please try again.'];
+        }
+
+        $url     = self::FTA_BASE_URL . '/api/prc/ects-einvoicing/v1/verifyenduser';
+        $body    = json_encode(['TIN' => $tin, 'email' => $email, 'mobile' => $mobile, 'emarataxToken' => $emarataxToken]);
+        $headers = [
+            'GW-APIKey: '     . self::GSB_API_KEY,
+            'Authorization: Bearer ' . $gsbToken,
+            'CustomAuth: Bearer '    . $ftaxToken,
+            'Content-Type: application/json',
+        ];
+        $result = $this->httpPost($url, $body, $headers);
 
         if (!$result['success']) {
             return ['success' => false, 'message' => 'Connection to FTA failed. Please try again.'];
@@ -400,16 +435,73 @@ class Onboarding extends BaseController
             return ['success' => true, 'response' => ['status' => 'test_mode']];
         }
 
-        $url  = self::FTA_BASE_URL . '/api/prc/ects-einvoicing/v1/crregupdate';
-        $body = json_encode(array_merge($payload, ['field1' => '', 'field2' => '', 'field3' => '', 'field4' => '', 'field5' => '']));
+        $gsbToken  = $this->getGsbBearerToken();
+        $ftaxToken = $this->getFtaxBearerToken();
 
-        $result = $this->httpPost($url, $body, ['Authorization: ' . self::FTA_GSB_TOKEN, 'Content-Type: application/json']);
+        if (!$gsbToken || !$ftaxToken) {
+            return ['success' => false, 'error' => 'Failed to obtain authorization tokens.'];
+        }
+
+        $url     = self::FTA_BASE_URL . '/api/prc/ects-einvoicing/v1/crregupdate';
+        $body    = json_encode(array_merge($payload, ['field1' => '', 'field2' => '', 'field3' => '', 'field4' => '', 'field5' => '']));
+        $headers = [
+            'GW-APIKey: '            . self::GSB_API_KEY,
+            'Authorization: Bearer ' . $gsbToken,
+            'CustomAuth: Bearer '    . $ftaxToken,
+            'Content-Type: application/json',
+        ];
+        $result = $this->httpPost($url, $body, $headers);
 
         if (!$result['success'] || $result['http_code'] !== 200) {
             return ['success' => false, 'error' => 'HTTP ' . $result['http_code'] . ': ' . $result['body']];
         }
 
         return ['success' => true, 'response' => json_decode($result['body'], true)];
+    }
+
+    // -----------------------------------------------------------------------
+    // Private: Fetch GSB OAuth2 Bearer token (Authorization header)
+    // -----------------------------------------------------------------------
+    private function getGsbBearerToken(): ?string
+    {
+        $body   = http_build_query([
+            'grant_type'    => 'client_credentials',
+            'client_id'     => self::GSB_CLIENT_ID,
+            'client_secret' => self::GSB_CLIENT_SECRET,
+            'scope'         => self::GSB_SCOPE,
+        ]);
+        $result = $this->httpPost(self::GSB_TOKEN_URL, $body, [
+            'Content-Type: application/x-www-form-urlencoded',
+        ]);
+
+        if (!$result['success'] || $result['http_code'] !== 200) {
+            return null;
+        }
+
+        $data = json_decode($result['body'], true);
+        return $data['access_token'] ?? null;
+    }
+
+    // -----------------------------------------------------------------------
+    // Private: Fetch FTAX Bearer token (CustomAuth header)
+    // -----------------------------------------------------------------------
+    private function getFtaxBearerToken(): ?string
+    {
+        $body   = http_build_query([
+            'grant_type'    => 'client_credentials',
+            'client_id'     => self::FTAX_CLIENT_ID,
+            'client_secret' => self::FTAX_CLIENT_SECRET,
+        ]);
+        $result = $this->httpPost(self::FTAX_TOKEN_URL, $body, [
+            'Content-Type: application/x-www-form-urlencoded',
+        ]);
+
+        if (!$result['success'] || $result['http_code'] !== 200) {
+            return null;
+        }
+
+        $data = json_decode($result['body'], true);
+        return $data['access_token'] ?? null;
     }
 
     // -----------------------------------------------------------------------
