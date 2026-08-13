@@ -75,6 +75,7 @@ class Onboarding extends BaseController
     // -----------------------------------------------------------------------
     // GET /uae/onboard?authcode=XXX          (FTA redirect — preferred)
     // GET /uae/onboard?emarataxToken=XXX     (legacy)
+    // GET /uae/onboard?emarataxToken=XXX     (legacy)
     // GET /uae/onboard?tin=XXX&authcode=XXX
     // GET /uae/onboard?tin=XXX&authcode=XXX
     // -----------------------------------------------------------------------
