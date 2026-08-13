@@ -4,98 +4,22 @@ namespace App\Controllers\Uae;
 
 use App\Controllers\BaseController;
 use App\Models\PeppolParticipantModel;
+use Config\Ftax;
 
 class Onboarding extends BaseController
 {
-    // -----------------------------------------------------------------------
-    // Test mode — set TRUE to bypass FTA API calls (no GSB token needed)
-    // -----------------------------------------------------------------------
-    const TEST_MODE = true;
-
-    // -----------------------------------------------------------------------
-    // FTA / GSB API — base URL
-    // -----------------------------------------------------------------------
-    const FTA_BASE_URL = 'https://api.gsb.government.ae/gateway/validateTaxPayerDetails_FTAX/1.0';
-
-    // -----------------------------------------------------------------------
-    // Header 1: GW-APIKey — static key issued via UAE API Marketplace
-    // -----------------------------------------------------------------------
-    const GSB_API_KEY = 'YOUR_GW_APIKEY_HERE';
-
-    // -----------------------------------------------------------------------
-    // Header 2: Authorization — OAuth2 Bearer token from GSB getAccessToken
-    // -----------------------------------------------------------------------
-    const GSB_TOKEN_URL     = 'https://api.gsb.government.ae/invoke/pub.apigateway.oauth2/getAccessToken';
-    const GSB_SCOPE         = '9b9346b3-5b18-11f0-a374-856a43324051';
-    const GSB_CLIENT_ID     = 'YOUR_GSB_CLIENT_ID_HERE';
-    const GSB_CLIENT_SECRET = 'YOUR_GSB_CLIENT_SECRET_HERE';
-
-    // -----------------------------------------------------------------------
-    // Header 3: CustomAuth — Bearer token from FTAX generateAccessToken_FTAX
-    // -----------------------------------------------------------------------
-    const FTAX_TOKEN_URL     = 'YOUR_FTAX_TOKEN_URL_HERE'; // e.g. from UAE API Marketplace portal
-    const FTAX_CLIENT_ID     = 'YOUR_FTAX_CLIENT_ID_HERE';
-    const FTAX_CLIENT_SECRET = 'YOUR_FTAX_CLIENT_SECRET_HERE';
-
-    // -----------------------------------------------------------------------
-    // phoss-SMP
-    // -----------------------------------------------------------------------
-    const SMP_BASE_URL   = 'https://smp.ethicfin.com';
-    const SMP_ADMIN_USER = 'r&d@ethicfin.com';
-    const SMP_ADMIN_PASS = '@1Direct';
-
-    // -----------------------------------------------------------------------
-    // Our AP / ASP identity
-    // -----------------------------------------------------------------------
-    const AP_ENDPOINT          = 'https://as4.ethicfin.com/as4';
-    const ASP_NAME             = 'Ethicfin';
-    const ASP_ACCREDITATION_NO = 'UAE_ACCREDITATION_NUMBER';
-    const UAE_VAT_SCHEME       = '0235';
-    const PEPPOL_ACTOR_SCHEME  = 'iso6523-actorid-upis';
-
-    // -----------------------------------------------------------------------
-    // Email — Brevo API
-    // -----------------------------------------------------------------------
-    const FROM_EMAIL    = 'noreply@ethicfin.com';
-    const FROM_NAME     = 'Ethicfin PEPPOL e-Invoicing';
-    // Loaded from .env: brevo.apiKey
-
-    // AP public certificate (BASE64 DER)
-    const AP_CERT_BASE64 = 'MIIFtDCCA5ygAwIBAgIUIZADkyW0hedKq3uFB3jvadTeLW8wDQYJKoZIhvcNAQELBQAwazELMAkGA1UEBhMCQkUxGTAXBgNVBAoTEE9wZW5QRVBQT0wgQUlTQkwxFjAUBgNVBAsTDUZPUiBURVNUIE9OTFkxKTAnBgNVBAMTIFBFUFBPTCBBQ0NFU1MgUE9JTlQgVEVTVCBDQSAtIEczMB4XDTI2MDYyMjAwMDAwMFoXDTI4MDYxMDIzNTk1OVowYjELMAkGA1UEBhMCSU4xJjAkBgNVBAoMHUV0aGljcHJvIEludGVsbGlnZW5jZSBQdnQgTHRkMRcwFQYDVQQLDA5QRVBQT0wgVEVTVCBBUDESMBAGA1UEAwwJUE9QMDAxMTcwMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApvv8H2DRpnjT1Od0BRMosYzINboeNEmXnDoPI1uAziDpRFW1xjHfAZXvHx1brhHCLiYM5+aOFvVcFKNnveZZbJqgH97lgIgF9YLqnT/YCDbd/32KUfM1CVb7AOn0Fy57+AWuuqebkqPeY2mS3ddeHnGP1W8ScXrdxvS4QqHRIZDljFXqJX2KE8WC57OGMpNqpbhVcvyc9O1MXQQCFmGLd1zSYk7hoAl6GjJosHmqe+cf4ywh/7JH8FbO/DpsSoF14qhZ5sPzS+HTsIpiXXvwfQXpe1zBrTghqHbxANJnrfRsimtKr5QHF1Wu507euk35r7EM8v+1qyR46ReKQdmX3wIDAQABo4IBVzCCAVMwDgYDVR0PAQH/BAQDAgSwMBYGA1UdJQEB/wQMMAoGCCsGAQUFBwMCMB0GA1UdDgQWBBQwQYjtts6yblq65GpxtNhOeB/LuzAfBgNVHSMEGDAWgBSzzETvdq+Byd/zX6WeiHGtn6D3cDAMBgNVHRMBAf8EAjAAMIGKBggrBgEFBQcBAQR+MHwwKwYIKwYBBQUHMAGGH2h0dHA6Ly9vY3NwLm9uZS5ubC5kaWdpY2VydC5jb20wTQYIKwYBBQUHMAKGQWh0dHA6Ly9jYWNlcnRzLm9uZS5ubC5kaWdpY2VydC5jb20vUEVQUE9MQUNDRVNTUE9JTlRURVNUQ0EtRzMuY3J0ME4GA1UdHwRHMEUwQ6BBoD+GPWh0dHA6Ly9jcmwub25lLm5sLmRpZ2ljZXJ0LmNvbS9QRVBQT0xBQ0NFU1NQT0lOVFRFU1RDQS1HMy5jcmwwDQYJKoZIhvcNAQELBQADggIBABEZpfFlITvezuqqBhE0xxFnCEoVA1o7QiHwGSIOUF4rzq741SFNezKP0pzhLuKuPXFbqNp6w1DOh7gGuSW+IELMglfXqICpYPnPQNV3XJ9GmJCorUp8LzLIV1xrds5D1r+SavpSJyAVLLSsCim0e+hZF41jYJE1BOQKLPXq9dSbvtor1sb/JRHH0PkyVEGiTSUclC0/h+XPeuheDkr7sgHhx+M3Jw9ei2YQ/qrz2VxgdpNgT+FAWOxLytS9M66siRoW7+Tnfbjakas/xaWatc7PVhzYP2dCTgphCHdy1u5aC0qDFreOWdwC1/9TtwQrRKXe+9udlLKmpg9GVBh1aicnig0eC1fN0jQALaDsqgTlO9atySBZFT+pZndHRgBBfTfnil596jfVFzgbB/YK5MNwTJoWeKoQDoI3euoX//USyiFO8sOHprAQBLgYS07vjDWjdih9VFHSh6pJO8PsQLApkLaYNAL8qvi4x8YjjxgMWn1iGJFoYs2IMuOoyuPRaAx1+o9/iQjLC4kXMuWNw0QFHkecRAvALNFrP/LC1pdhqAgQ2HEJzptH9e/EF9bfuhdw+alnVT4OsyeMc8l9nMpPiPHOz9k41I41165gitbsBQ24S56dKBvnj+0Stq2stk1i5Ker10Su14gpKJzLf4wc3kkSG+ov6INR2n9Epmqr';
-
-    const DOC_TYPES = [
-        [
-            'scheme'  => 'peppol-doctype-wildcard',
-            'id'      => 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2::Invoice##urn:peppol:pint:billing-1@ae-1*::2.1',
-            'process' => 'urn:peppol:bis:billing',
-            'desc'    => 'PINT AE Invoice',
-        ],
-        [
-            'scheme'  => 'peppol-doctype-wildcard',
-            'id'      => 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2::CreditNote##urn:peppol:pint:billing-1@ae-1*::2.1',
-            'process' => 'urn:peppol:bis:billing',
-            'desc'    => 'PINT AE Credit Note',
-        ],
-        [
-            'scheme'  => 'busdox-docid-qns',
-            'id'      => 'urn:oasis:names:specification:ubl:schema:xsd:ApplicationResponse-2::ApplicationResponse##urn:fdc:peppol.eu:poacc:trns:mlr:3::2.1',
-            'process' => 'urn:fdc:peppol.eu:poacc:bis:mlr:3',
-            'desc'    => 'Message Level Response (MLS)',
-        ],
-    ];
-
     private PeppolParticipantModel $peppolModel;
+    private Ftax $cfg;
 
     public function __construct()
     {
         $this->peppolModel = new PeppolParticipantModel();
+        $this->cfg         = config('Ftax');
     }
 
     // -----------------------------------------------------------------------
     // GET /uae/onboard?authcode=XXX          (FTA redirect — preferred)
     // GET /uae/onboard?emarataxToken=XXX     (legacy)
-    // GET /uae/onboard?emarataxToken=XXX     (legacy)
-    // GET /uae/onboard?tin=XXX&authcode=XXX
     // GET /uae/onboard?tin=XXX&authcode=XXX
     // -----------------------------------------------------------------------
     public function onboard()
@@ -184,7 +108,7 @@ class Onboarding extends BaseController
             return view('uae/onboard', ['error' => 'Invalid submission. Please go back and try again.']);
         }
 
-        $peppolId = self::UAE_VAT_SCHEME . ':' . $vatTrn;
+        $peppolId = $this->cfg->uaeVatScheme . ':' . $vatTrn;
 
         // Already registered?
         $existing = $this->peppolModel->getByTin($tin);
@@ -206,7 +130,7 @@ class Onboarding extends BaseController
         }
 
         // 2. Register document type endpoints
-        foreach (self::DOC_TYPES as $docType) {
+        foreach ($this->cfg->docTypes as $docType) {
             $this->registerSmpEndpoint($vatTrn, $docType);
         }
 
@@ -219,12 +143,12 @@ class Onboarding extends BaseController
             'vatTrn'                => $vatTrn,
             'effectiveDate'         => $effectiveDate,
             'emarataxToken'         => $emarataxToken,
-            'peppolParticipantId'   => self::PEPPOL_ACTOR_SCHEME . '::' . $peppolId,
+            'peppolParticipantId'   => $this->cfg->peppolActorScheme . '::' . $peppolId,
             'eventDate'             => date('Y-m-d'),
-            'aspName'               => self::ASP_NAME,
-            'aspAccrediationNumber' => self::ASP_ACCREDITATION_NO,
+            'aspName'               => $this->cfg->aspName,
+            'aspAccrediationNumber' => $this->cfg->aspAccreditationNo,
             'reason'                => 'New PEPPOL e-Invoicing registration',
-            'action'                => 1,
+            'action'                => 1, // 1 = Register (add)
         ]);
 
         // 4. Save to DB
@@ -281,7 +205,7 @@ class Onboarding extends BaseController
             return view('uae/onboard', ['error' => 'Invalid submission. Please go back and try again.']);
         }
 
-        $peppolId = self::UAE_VAT_SCHEME . ':' . $vatTrn;
+        $peppolId = $this->cfg->uaeVatScheme . ':' . $vatTrn;
 
         if ($action === 'delink') {
             $this->deregisterSmpParticipant($vatTrn);
@@ -294,10 +218,10 @@ class Onboarding extends BaseController
                 'vatTrn'                => $vatTrn,
                 'effectiveDate'         => $effectiveDate,
                 'emarataxToken'         => $emarataxToken,
-                'peppolParticipantId'   => self::PEPPOL_ACTOR_SCHEME . '::' . $peppolId,
+                'peppolParticipantId'   => $this->cfg->peppolActorScheme . '::' . $peppolId,
                 'eventDate'             => date('Y-m-d'),
-                'aspName'               => self::ASP_NAME,
-                'aspAccrediationNumber' => self::ASP_ACCREDITATION_NO,
+                'aspName'               => $this->cfg->aspName,
+                'aspAccrediationNumber' => $this->cfg->aspAccreditationNo,
                 'reason'                => 'Customer requested PEPPOL deregistration',
                 'action'                => 3, // 3 = Remove (delete)
             ]);
@@ -318,7 +242,7 @@ class Onboarding extends BaseController
             $existing = $this->peppolModel->getByTin($tin);
             if (!$existing || $existing['status'] !== 'active') {
                 $this->registerSmpParticipant($vatTrn);
-                foreach (self::DOC_TYPES as $docType) {
+                foreach ($this->cfg->docTypes as $docType) {
                     $this->registerSmpEndpoint($vatTrn, $docType);
                 }
             }
@@ -331,10 +255,10 @@ class Onboarding extends BaseController
                 'vatTrn'                => $vatTrn,
                 'effectiveDate'         => $effectiveDate,
                 'emarataxToken'         => $emarataxToken,
-                'peppolParticipantId'   => self::PEPPOL_ACTOR_SCHEME . '::' . $peppolId,
+                'peppolParticipantId'   => $this->cfg->peppolActorScheme . '::' . $peppolId,
                 'eventDate'             => date('Y-m-d'),
-                'aspName'               => self::ASP_NAME,
-                'aspAccrediationNumber' => self::ASP_ACCREDITATION_NO,
+                'aspName'               => $this->cfg->aspName,
+                'aspAccrediationNumber' => $this->cfg->aspAccreditationNo,
                 'reason'                => 'PEPPOL e-Invoicing re-verification',
                 'action'                => 2, // 2 = Update (reverify)
             ]);
@@ -372,7 +296,7 @@ class Onboarding extends BaseController
     // -----------------------------------------------------------------------
     private function verifyTaxpayer(string $tin, string $email, string $mobile, string $emarataxToken): array
     {
-        if (self::TEST_MODE) {
+        if ($this->cfg->testMode) {
             return [
                 'success' => true,
                 'data'    => [
@@ -397,10 +321,10 @@ class Onboarding extends BaseController
             return ['success' => false, 'message' => 'Failed to obtain FTAX authorization token. Please try again.'];
         }
 
-        $url     = self::FTA_BASE_URL . '/api/prc/ects-einvoicing/v1/verifyenduser';
+        $url     = $this->cfg->ftaBaseUrl . '/api/prc/ects-einvoicing/v1/verifyenduser';
         $body    = json_encode(['TIN' => $tin, 'email' => $email, 'mobile' => $mobile, 'emarataxToken' => $emarataxToken]);
         $headers = [
-            'GW-APIKey: '     . self::GSB_API_KEY,
+            'GW-APIKey: '            . $this->cfg->gsbApiKey,
             'Authorization: Bearer ' . $gsbToken,
             'CustomAuth: Bearer '    . $ftaxToken,
             'Content-Type: application/json',
@@ -431,7 +355,7 @@ class Onboarding extends BaseController
     // -----------------------------------------------------------------------
     private function crregupdate(array $payload): array
     {
-        if (self::TEST_MODE) {
+        if ($this->cfg->testMode) {
             return ['success' => true, 'response' => ['status' => 'test_mode']];
         }
 
@@ -442,10 +366,10 @@ class Onboarding extends BaseController
             return ['success' => false, 'error' => 'Failed to obtain authorization tokens.'];
         }
 
-        $url     = self::FTA_BASE_URL . '/api/prc/ects-einvoicing/v1/crregupdate';
+        $url     = $this->cfg->ftaBaseUrl . '/api/prc/ects-einvoicing/v1/crregupdate';
         $body    = json_encode(array_merge($payload, ['field1' => '', 'field2' => '', 'field3' => '', 'field4' => '', 'field5' => '']));
         $headers = [
-            'GW-APIKey: '            . self::GSB_API_KEY,
+            'GW-APIKey: '            . $this->cfg->gsbApiKey,
             'Authorization: Bearer ' . $gsbToken,
             'CustomAuth: Bearer '    . $ftaxToken,
             'Content-Type: application/json',
@@ -466,11 +390,11 @@ class Onboarding extends BaseController
     {
         $body   = http_build_query([
             'grant_type'    => 'client_credentials',
-            'client_id'     => self::GSB_CLIENT_ID,
-            'client_secret' => self::GSB_CLIENT_SECRET,
-            'scope'         => self::GSB_SCOPE,
+            'client_id'     => $this->cfg->gsbClientId,
+            'client_secret' => $this->cfg->gsbClientSecret,
+            'scope'         => $this->cfg->gsbScope,
         ]);
-        $result = $this->httpPost(self::GSB_TOKEN_URL, $body, [
+        $result = $this->httpPost($this->cfg->gsbTokenUrl, $body, [
             'Content-Type: application/x-www-form-urlencoded',
         ]);
 
@@ -489,10 +413,10 @@ class Onboarding extends BaseController
     {
         $body   = http_build_query([
             'grant_type'    => 'client_credentials',
-            'client_id'     => self::FTAX_CLIENT_ID,
-            'client_secret' => self::FTAX_CLIENT_SECRET,
+            'client_id'     => $this->cfg->ftaxClientId,
+            'client_secret' => $this->cfg->ftaxClientSecret,
         ]);
-        $result = $this->httpPost(self::FTAX_TOKEN_URL, $body, [
+        $result = $this->httpPost($this->cfg->ftaxTokenUrl, $body, [
             'Content-Type: application/x-www-form-urlencoded',
         ]);
 
@@ -509,19 +433,19 @@ class Onboarding extends BaseController
     // -----------------------------------------------------------------------
     private function registerSmpParticipant(string $vatTrn): array
     {
-        $participantId = self::PEPPOL_ACTOR_SCHEME . '::' . self::UAE_VAT_SCHEME . ':' . $vatTrn;
-        $url           = self::SMP_BASE_URL . '/' . rawurlencode($participantId);
+        $participantId = $this->cfg->peppolActorScheme . '::' . $this->cfg->uaeVatScheme . ':' . $vatTrn;
+        $url           = $this->cfg->smpBaseUrl . '/' . rawurlencode($participantId);
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'
              . '<ServiceGroup xmlns="http://busdox.org/serviceMetadata/publishing/1.0/"'
              . ' xmlns:id="http://busdox.org/transport/identifiers/1.0/">'
-             . '<id:ParticipantIdentifier scheme="' . self::PEPPOL_ACTOR_SCHEME . '">'
-             . self::UAE_VAT_SCHEME . ':' . htmlspecialchars($vatTrn)
+             . '<id:ParticipantIdentifier scheme="' . $this->cfg->peppolActorScheme . '">'
+             . $this->cfg->uaeVatScheme . ':' . htmlspecialchars($vatTrn)
              . '</id:ParticipantIdentifier>'
              . '<ServiceMetadataReferenceCollection/>'
              . '</ServiceGroup>';
 
-        $result = $this->httpPut($url, $xml, ['Content-Type: application/xml'], self::SMP_ADMIN_USER, self::SMP_ADMIN_PASS);
+        $result = $this->httpPut($url, $xml, ['Content-Type: application/xml'], $this->cfg->smpAdminUser, $this->cfg->smpAdminPass);
 
         if (!$result['success'] || !in_array($result['http_code'], [200, 201, 204, 409])) {
             return ['success' => false, 'error' => 'HTTP ' . $result['http_code'] . ': ' . $result['body']];
@@ -535,9 +459,9 @@ class Onboarding extends BaseController
     // -----------------------------------------------------------------------
     private function registerSmpEndpoint(string $vatTrn, array $docType): array
     {
-        $participantId = self::PEPPOL_ACTOR_SCHEME . '::' . self::UAE_VAT_SCHEME . ':' . $vatTrn;
+        $participantId = $this->cfg->peppolActorScheme . '::' . $this->cfg->uaeVatScheme . ':' . $vatTrn;
         $docTypeId     = $docType['scheme'] . '::' . $docType['id'];
-        $url           = self::SMP_BASE_URL . '/' . rawurlencode($participantId) . '/services/' . rawurlencode($docTypeId);
+        $url           = $this->cfg->smpBaseUrl . '/' . rawurlencode($participantId) . '/services/' . rawurlencode($docTypeId);
 
         $today   = date('Y-m-d') . 'T00:00:00Z';
         $expires = '2099-12-31T00:00:00Z';
@@ -546,8 +470,8 @@ class Onboarding extends BaseController
              . '<ServiceMetadata xmlns="http://busdox.org/serviceMetadata/publishing/1.0/"'
              . ' xmlns:id="http://busdox.org/transport/identifiers/1.0/">'
              . '<ServiceInformation>'
-             . '<id:ParticipantIdentifier scheme="' . self::PEPPOL_ACTOR_SCHEME . '">'
-             . self::UAE_VAT_SCHEME . ':' . htmlspecialchars($vatTrn)
+             . '<id:ParticipantIdentifier scheme="' . $this->cfg->peppolActorScheme . '">'
+             . $this->cfg->uaeVatScheme . ':' . htmlspecialchars($vatTrn)
              . '</id:ParticipantIdentifier>'
              . '<id:DocumentIdentifier scheme="' . htmlspecialchars($docType['scheme']) . '">'
              . htmlspecialchars($docType['id'])
@@ -559,12 +483,12 @@ class Onboarding extends BaseController
              . '<ServiceEndpointList>'
              . '<Endpoint transportProfile="peppol-transport-as4-v2_0">'
              . '<wsa:EndpointReference xmlns:wsa="http://www.w3.org/2005/08/addressing">'
-             . '<wsa:Address>' . self::AP_ENDPOINT . '</wsa:Address>'
+             . '<wsa:Address>' . $this->cfg->apEndpoint . '</wsa:Address>'
              . '</wsa:EndpointReference>'
              . '<RequireBusinessLevelSignature>false</RequireBusinessLevelSignature>'
              . '<ServiceActivationDate>' . $today . '</ServiceActivationDate>'
              . '<ServiceExpirationDate>' . $expires . '</ServiceExpirationDate>'
-             . '<Certificate>' . self::AP_CERT_BASE64 . '</Certificate>'
+             . '<Certificate>' . $this->cfg->apCertBase64 . '</Certificate>'
              . '<ServiceDescription>' . htmlspecialchars($docType['desc']) . '</ServiceDescription>'
              . '<TechnicalContactUrl>mailto:support@ethicfin.com</TechnicalContactUrl>'
              . '</Endpoint></ServiceEndpointList>'
@@ -572,7 +496,7 @@ class Onboarding extends BaseController
              . '</ServiceInformation>'
              . '</ServiceMetadata>';
 
-        $result = $this->httpPut($url, $xml, ['Content-Type: application/xml'], self::SMP_ADMIN_USER, self::SMP_ADMIN_PASS);
+        $result = $this->httpPut($url, $xml, ['Content-Type: application/xml'], $this->cfg->smpAdminUser, $this->cfg->smpAdminPass);
 
         if (!$result['success'] || !in_array($result['http_code'], [200, 201, 204])) {
             return ['success' => false, 'error' => 'HTTP ' . $result['http_code'] . ': ' . $result['body']];
@@ -586,22 +510,20 @@ class Onboarding extends BaseController
     // -----------------------------------------------------------------------
     private function deregisterSmpParticipant(string $vatTrn): array
     {
-        $participantId = self::PEPPOL_ACTOR_SCHEME . '::' . self::UAE_VAT_SCHEME . ':' . $vatTrn;
-        $url           = self::SMP_BASE_URL . '/' . rawurlencode($participantId);
+        $participantId = $this->cfg->peppolActorScheme . '::' . $this->cfg->uaeVatScheme . ':' . $vatTrn;
+        $url           = $this->cfg->smpBaseUrl . '/' . rawurlencode($participantId);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST  => 'DELETE',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 30,
-            CURLOPT_USERPWD        => self::SMP_ADMIN_USER . ':' . self::SMP_ADMIN_PASS,
+            CURLOPT_USERPWD        => $this->cfg->smpAdminUser . ':' . $this->cfg->smpAdminPass,
         ]);
-        $body    = curl_exec($ch);
-        $code    = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $success = !curl_errno($ch);
+        $success = !curl_errno($ch) && in_array(curl_getinfo($ch, CURLINFO_HTTP_CODE), [200, 204, 404]);
         curl_close($ch);
 
-        return ['success' => $success && in_array($code, [200, 204, 404])];
+        return ['success' => $success];
     }
 
     // -----------------------------------------------------------------------
@@ -643,7 +565,7 @@ class Onboarding extends BaseController
         </body></html>';
 
         $payload = json_encode([
-            'sender'      => ['name' => self::FROM_NAME, 'email' => self::FROM_EMAIL],
+            'sender'      => ['name' => $this->cfg->fromName, 'email' => $this->cfg->fromEmail],
             'to'          => [['email' => $to]],
             'subject'     => $l['subject'],
             'htmlContent' => $htmlBody,
@@ -657,7 +579,7 @@ class Onboarding extends BaseController
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_HTTPHEADER     => ['api-key: ' . env('brevo.apiKey', ''), 'Content-Type: application/json', 'Accept: application/json'],
         ]);
-        $code = curl_getinfo(curl_exec($ch) ? $ch : $ch, CURLINFO_HTTP_CODE);
+        curl_exec($ch);
         curl_close($ch);
     }
 
