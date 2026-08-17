@@ -226,8 +226,8 @@ function doVerify() {
         showVerifyError('Please enter your TIN and Email address.');
         return;
     }
-    if (!/^\d{10}$/.test(tin)) {
-        showVerifyError('TIN must be exactly 10 digits.');
+    if (!/^\d{15}$/.test(tin)) {
+        showVerifyError('TIN must be exactly 15 digits.');
         return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

@@ -228,8 +228,8 @@ function doVerify() {
         showVerifyError('يرجى إدخال رقم التعريف الضريبي وعنوان البريد الإلكتروني.');
         return;
     }
-    if (!/^\d{10}$/.test(tin)) {
-        showVerifyError('يجب أن يتكون رقم التعريف الضريبي (TIN) من 10 أرقام بالضبط.');
+    if (!/^\d{15}$/.test(tin)) {
+        showVerifyError('يجب أن يتكون رقم التعريف الضريبي (TIN) من 15 رقماً بالضبط.');
         return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
