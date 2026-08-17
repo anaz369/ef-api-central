@@ -14,7 +14,7 @@ class Onboarding extends BaseController
     public function __construct()
     {
         $this->peppolModel = new PeppolParticipantModel();
-        $this->cfg         = config('Ftax');
+        $this->cfg = config('Ftax');
     }
 
     // -----------------------------------------------------------------------
@@ -24,6 +24,22 @@ class Onboarding extends BaseController
     // -----------------------------------------------------------------------
     public function onboard()
     {
+        return $this->_renderOnboard('en');
+    }
+
+    // -----------------------------------------------------------------------
+    // GET /uae/onboard-ar?authcode=XXX       (Arabic version)
+    // -----------------------------------------------------------------------
+    public function onboardAr()
+    {
+        return $this->_renderOnboard('ar');
+    }
+
+    private function _renderOnboard(string $locale)
+    {
+        $isAr  = $locale === 'ar';
+        $viewName = $isAr ? 'uae/onboard_ar' : 'uae/onboard';
+
         // FTA sends the token as "authcode"; keep emarataxToken as fallback
         $emarataxToken = $this->request->getGet('authcode')
                       ?? $this->request->getGet('emarataxToken')
@@ -31,12 +47,13 @@ class Onboarding extends BaseController
         $tin           = $this->request->getGet('TIN') ?? '';
 
         if (empty($emarataxToken)) {
-            return view('uae/onboard', ['error' => 'Missing required parameter (authcode).']);
+            $errMsg = $isAr ? 'معامل مطلوب مفقود (authcode).' : 'Missing required parameter (authcode).';
+            return view($viewName, ['error' => $errMsg]);
         }
 
         $mode = empty($tin) ? 'onboard' : 'reverify';
 
-        return view('uae/onboard', [
+        return view($viewName, [
             'mode'          => $mode,
             'emarataxToken' => $emarataxToken,
             'tin'           => $tin,
@@ -94,6 +111,11 @@ class Onboarding extends BaseController
             return redirect()->to(base_url('uae/onboard'));
         }
 
+        $locale        = $this->request->getPost('locale') === 'ar' ? 'ar' : 'en';
+        $isAr          = $locale === 'ar';
+        $successView   = $isAr ? 'uae/success_ar' : 'uae/success';
+        $onboardView   = $isAr ? 'uae/onboard_ar' : 'uae/onboard';
+
         $emarataxToken = $this->request->getPost('emarataxToken');
         $email         = $this->request->getPost('email');
         $mobile        = $this->request->getPost('mobile');
@@ -105,7 +127,8 @@ class Onboarding extends BaseController
         $effectiveDate = $this->request->getPost('effective_date');
 
         if (empty($tin) || empty($vatTrn)) {
-            return view('uae/onboard', ['error' => 'Invalid submission. Please go back and try again.']);
+            $errMsg = $isAr ? 'طلب غير صالح. يرجى العودة والمحاولة مجدداً.' : 'Invalid submission. Please go back and try again.';
+            return view($onboardView, ['error' => $errMsg]);
         }
 
         $peppolId = $this->cfg->uaeVatScheme . ':' . $vatTrn;
@@ -113,7 +136,7 @@ class Onboarding extends BaseController
         // Already registered?
         $existing = $this->peppolModel->getByTin($tin);
         if ($existing && $existing['status'] === 'active') {
-            return view('uae/success', [
+            return view($successView, [
                 'action'         => 'onboard',
                 'already_linked' => true,
                 'entity_name_en' => $existing['entity_name_en'],
@@ -126,7 +149,8 @@ class Onboarding extends BaseController
         // 1. Register in SMP
         $smpResult = $this->registerSmpParticipant($vatTrn);
         if (!$smpResult['success']) {
-            return view('uae/onboard', ['error' => 'SMP registration failed: ' . $smpResult['error']]);
+            $errMsg = $isAr ? 'فشل تسجيل SMP: ' . $smpResult['error'] : 'SMP registration failed: ' . $smpResult['error'];
+            return view($onboardView, ['error' => $errMsg]);
         }
 
         // 2. Register document type endpoints
@@ -171,7 +195,7 @@ class Onboarding extends BaseController
         // 5. Send confirmation email
         $this->sendConfirmationEmail($email, $entityNameEn, $vatTrn, $peppolId, 'onboard');
 
-        return view('uae/success', [
+        return view($successView, [
             'action'         => 'onboard',
             'already_linked' => false,
             'entity_name_en' => $entityNameEn,
@@ -190,6 +214,11 @@ class Onboarding extends BaseController
             return redirect()->to(base_url('uae/onboard'));
         }
 
+        $locale        = $this->request->getPost('locale') === 'ar' ? 'ar' : 'en';
+        $isAr          = $locale === 'ar';
+        $successView   = $isAr ? 'uae/success_ar' : 'uae/success';
+        $onboardView   = $isAr ? 'uae/onboard_ar' : 'uae/onboard';
+
         $action        = $this->request->getPost('selected_action'); // 'reverify' or 'delink'
         $emarataxToken = $this->request->getPost('emarataxToken');
         $email         = $this->request->getPost('email');
@@ -202,7 +231,8 @@ class Onboarding extends BaseController
         $effectiveDate = $this->request->getPost('effective_date');
 
         if (empty($tin) || empty($vatTrn) || !in_array($action, ['reverify', 'delink'])) {
-            return view('uae/onboard', ['error' => 'Invalid submission. Please go back and try again.']);
+            $errMsg = $isAr ? 'طلب غير صالح. يرجى العودة والمحاولة مجدداً.' : 'Invalid submission. Please go back and try again.';
+            return view($onboardView, ['error' => $errMsg]);
         }
 
         $peppolId = $this->cfg->uaeVatScheme . ':' . $vatTrn;
@@ -229,7 +259,7 @@ class Onboarding extends BaseController
             $this->peppolModel->delinkParticipant($tin, date('Y-m-d H:i:s'));
             $this->sendConfirmationEmail($email, $entityNameEn, $vatTrn, $peppolId, 'delink');
 
-            return view('uae/success', [
+            return view($successView, [
                 'action'         => 'delink',
                 'entity_name_en' => $entityNameEn,
                 'peppol_id'      => $peppolId,
@@ -281,7 +311,7 @@ class Onboarding extends BaseController
 
             $this->sendConfirmationEmail($email, $entityNameEn, $vatTrn, $peppolId, 'reverify');
 
-            return view('uae/success', [
+            return view($successView, [
                 'action'         => 'reverify',
                 'entity_name_en' => $entityNameEn,
                 'peppol_id'      => $peppolId,

@@ -268,7 +268,7 @@ class Participants extends BaseAdminController
 
     /**
      * AJAX: GET /participants/lookup-peppol?trn=xxx
-     * Looks up ethicfin.tbl_peppol_participants by TRN.
+     * Looks up ethicfin.tbl_fta_onboard_details by TRN.
      */
     public function lookupPeppol()
     {

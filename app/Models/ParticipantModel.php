@@ -45,7 +45,7 @@ class ParticipantModel extends Model
         if (!$trn) return null;
         return $this->db->query(
             'SELECT id, peppol_id, entity_name_en, status
-               FROM tbl_peppol_participants
+               FROM tbl_fta_onboard_details
               WHERE vat_trn = ? LIMIT 1',
             [$trn]
         )->getRowArray() ?: null;
@@ -58,7 +58,7 @@ class ParticipantModel extends Model
     {
         return $this->db->query(
             'SELECT id, peppol_id, entity_name_en, status, linked_at
-               FROM tbl_peppol_participants
+               FROM tbl_fta_onboard_details
               WHERE id = ? LIMIT 1',
             [$id]
         )->getRowArray() ?: null;

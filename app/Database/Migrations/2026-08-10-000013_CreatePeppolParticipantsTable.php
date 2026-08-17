@@ -33,11 +33,11 @@ class CreatePeppolParticipantsTable extends Migration
         $this->forge->addKey('vat_trn');
         $this->forge->addKey('status');
 
-        $this->forge->createTable('tbl_peppol_participants');
+        $this->forge->createTable('tbl_fta_onboard_details');
     }
 
     public function down()
     {
-        $this->forge->dropTable('tbl_peppol_participants', true);
+        $this->forge->dropTable('tbl_fta_onboard_details', true);
     }
 }

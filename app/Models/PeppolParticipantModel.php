@@ -6,7 +6,7 @@ use CodeIgniter\Model;
 
 class PeppolParticipantModel extends Model
 {
-    protected $table      = 'tbl_peppol_participants';
+    protected $table      = 'tbl_fta_onboard_details';
     protected $primaryKey = 'id';
 
     protected $allowedFields = [

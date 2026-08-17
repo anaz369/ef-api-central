@@ -73,9 +73,10 @@ $routes->get('invoices/(:num)',  'Admin\Invoices::view/$1');
 $routes->get('logs',             'Admin\ApiLogs::index');
 
 // UAE FTA Onboarding (public — no auth, FTA redirects with ?authcode=XXX)
-$routes->get('uae/onboard',                 'Uae\Onboarding::onboard');
-$routes->post('uae/ajax-verify',            'Uae\Onboarding::ajaxVerify');
-$routes->post('uae/confirm-onboard',        'Uae\Onboarding::confirmOnboard');
+$routes->get('uae/onboard',                  'Uae\Onboarding::onboard');
+$routes->get('uae/onboard-ar',               'Uae\Onboarding::onboardAr');
+$routes->post('uae/ajax-verify',             'Uae\Onboarding::ajaxVerify');
+$routes->post('uae/confirm-onboard',         'Uae\Onboarding::confirmOnboard');
 $routes->post('uae/confirm-reverify-delink', 'Uae\Onboarding::confirmReverifyDelink');
 
 // Participants (Admin)

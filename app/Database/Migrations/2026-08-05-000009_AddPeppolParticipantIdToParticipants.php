@@ -15,7 +15,7 @@ class AddPeppolParticipantIdToParticipants extends Migration
                 'unsigned'   => true,
                 'null'       => true,
                 'after'      => 'peppol_id',
-                'comment'    => 'Logical FK to ethicfin.tbl_peppol_participants.id',
+                'comment'    => 'Logical FK to ethicfin.tbl_fta_onboard_details.id',
             ],
         ]);
     }
