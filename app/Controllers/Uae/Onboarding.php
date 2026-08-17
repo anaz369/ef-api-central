@@ -466,6 +466,12 @@ class Onboarding extends BaseController
         $participantId = $this->cfg->peppolActorScheme . '::' . $this->cfg->uaeVatScheme . ':' . $vatTrn;
         $url           = $this->cfg->smpBaseUrl . '/' . rawurlencode($participantId);
 
+        // Check if already registered in SMP/SML — avoids ERR-106 "already exists" from SML
+        $check = $this->httpGet($url);
+        if ($check['success'] && $check['http_code'] === 200) {
+            return ['success' => true]; // already registered, nothing to do
+        }
+
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'
              . '<ServiceGroup xmlns="http://busdox.org/serviceMetadata/publishing/1.0/"'
              . ' xmlns:id="http://busdox.org/transport/identifiers/1.0/">'
@@ -633,6 +639,19 @@ class Onboarding extends BaseController
     {
         $ch   = curl_init($url);
         $opts = [CURLOPT_CUSTOMREQUEST => 'PUT', CURLOPT_POSTFIELDS => $body, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_HTTPHEADER => $headers, CURLOPT_SSL_VERIFYPEER => true];
+        if ($user) $opts[CURLOPT_USERPWD] = $user . ':' . $pass;
+        curl_setopt_array($ch, $opts);
+        $response = curl_exec($ch);
+        $code     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err      = curl_error($ch);
+        curl_close($ch);
+        return ['success' => empty($err), 'http_code' => $code, 'body' => $response, 'error' => $err];
+    }
+
+    private function httpGet(string $url, array $headers = [], ?string $user = null, ?string $pass = null): array
+    {
+        $ch   = curl_init($url);
+        $opts = [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10, CURLOPT_HTTPHEADER => $headers, CURLOPT_SSL_VERIFYPEER => true];
         if ($user) $opts[CURLOPT_USERPWD] = $user . ':' . $pass;
         curl_setopt_array($ch, $opts);
         $response = curl_exec($ch);
