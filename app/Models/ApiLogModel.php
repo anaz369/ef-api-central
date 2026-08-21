@@ -10,7 +10,7 @@ class ApiLogModel extends Model
     protected $primaryKey = 'id';
 
     protected $allowedFields = [
-        'participant_id', 'credential_id', 'endpoint', 'method',
+        'user_id', 'participant_id', 'credential_id', 'endpoint', 'method',
         'request_body', 'response_body', 'response_code',
         'environment', 'status', 'ip_address',
     ];
@@ -22,10 +22,14 @@ class ApiLogModel extends Model
     public function getList(array $filters = []): array
     {
         $builder = $this->db->table('tbl_api_logs l')
-            ->select('l.*, p.name AS participant_name')
+            ->select('l.*, u.email AS user_email, p.name AS participant_name')
+            ->join('tbl_users u', 'u.id = l.user_id', 'left')
             ->join('tbl_participants p', 'p.id = l.participant_id', 'left')
             ->orderBy('l.created_at', 'DESC');
 
+        if (!empty($filters['user_id'])) {
+            $builder->where('l.user_id', (int) $filters['user_id']);
+        }
         if (!empty($filters['participant_id'])) {
             $builder->where('l.participant_id', (int) $filters['participant_id']);
         }

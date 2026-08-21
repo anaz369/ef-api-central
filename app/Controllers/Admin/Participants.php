@@ -3,17 +3,17 @@
 namespace App\Controllers\Admin;
 
 use App\Models\ParticipantModel;
-use App\Models\CredentialModel;
+use App\Models\UserModel;
 
 class Participants extends BaseAdminController
 {
     private ParticipantModel $participantModel;
-    private CredentialModel  $credentialModel;
+    private UserModel        $userModel;
 
     public function __construct()
     {
         $this->participantModel = new ParticipantModel();
-        $this->credentialModel  = new CredentialModel();
+        $this->userModel        = new UserModel();
     }
 
     public function index()
@@ -57,8 +57,10 @@ class Participants extends BaseAdminController
             $phone       = ($phoneCode && $phoneNumber) ? $phoneCode . ' ' . $phoneNumber : $phoneNumber;
 
             $peppolParticipantId = (int) ($this->request->getPost('peppol_participant_id') ?: 0) ?: null;
+            $userId = (int) ($this->request->getPost('user_id') ?: 0) ?: null;
 
             $this->participantModel->insert([
+                'user_id'               => $userId,
                 'name'                  => $this->request->getPost('name'),
                 'email'                 => $this->request->getPost('email'),
                 'phone'                 => $phone,
@@ -88,6 +90,7 @@ class Participants extends BaseAdminController
             'page_title'  => 'Add Participant',
             'active_menu' => 'participants',
             'breadcrumb'  => 'Add Participant',
+            'users'       => $this->userModel->where('type', UserModel::TYPE_ADMIN)->where('is_active', 1)->findAll(),
         ];
 
         return $this->renderView(view('participants/create', $data), $data);
@@ -103,77 +106,27 @@ class Participants extends BaseAdminController
             return redirect()->to(base_url('participants'));
         }
 
-        $credentials = $this->credentialModel->getByParticipant($id);
-
-        $devCred  = null;
-        $prodCred = null;
-        foreach ($credentials as $cred) {
-            if ((int) $cred['environment'] === CredentialModel::ENV_DEVELOPMENT) {
-                $devCred = $cred;
-            } elseif ((int) $cred['environment'] === CredentialModel::ENV_PRODUCTION) {
-                $prodCred = $cred;
-            }
-        }
-
         // Fetch peppol identity from the shared ethicfin DB
         $peppolInfo = null;
         if ($participant['peppol_participant_id']) {
             $peppolInfo = $this->participantModel->getPeppolById((int) $participant['peppol_participant_id']);
         }
 
+        $managingUser = null;
+        if (!empty($participant['user_id'])) {
+            $managingUser = $this->userModel->find((int) $participant['user_id']);
+        }
+
         $data = [
-            'page_title'  => $participant['name'],
-            'active_menu' => 'participants',
-            'breadcrumb'  => $participant['name'],
-            'participant' => $participant,
-            'dev_cred'    => $devCred,
-            'prod_cred'   => $prodCred,
-            'peppol_info' => $peppolInfo,
-            'new_secret'  => session()->getFlashdata('new_secret'),
-            'new_env'     => session()->getFlashdata('new_env'),
+            'page_title'    => $participant['name'],
+            'active_menu'   => 'participants',
+            'breadcrumb'    => $participant['name'],
+            'participant'   => $participant,
+            'peppol_info'   => $peppolInfo,
+            'managing_user' => $managingUser,
         ];
 
         return $this->renderView(view('participants/view', $data), $data);
-    }
-
-    public function generateCredentials(int $id)
-    {
-        $this->requireLogin();
-
-        $participant = $this->participantModel->find($id);
-        if (!$participant) {
-            return redirect()->to(base_url('participants'));
-        }
-
-        $environment = (int) $this->request->getPost('environment');
-
-        // Production only if production_access granted
-        if ($environment === CredentialModel::ENV_PRODUCTION && !$participant['production_access']) {
-            session()->setFlashdata('error', 'Production access not yet granted for this participant.');
-            return redirect()->to(base_url('participants/' . $id));
-        }
-
-        // Deactivate existing credential for this env
-        $existing = $this->credentialModel->getForParticipantEnv($id, $environment);
-        if ($existing) {
-            $this->credentialModel->update($existing['id'], ['is_active' => 0]);
-        }
-
-        [$clientId, $clientSecret] = CredentialModel::generatePair();
-
-        $this->credentialModel->insert([
-            'participant_id'        => $id,
-            'client_id'             => $clientId,
-            'client_secret_hash'    => password_hash($clientSecret, PASSWORD_BCRYPT),
-            'client_secret_preview' => '...' . substr($clientSecret, -6),
-            'environment'           => $environment,
-            'is_active'             => 1,
-        ]);
-
-        session()->setFlashdata('new_secret', $clientSecret);
-        session()->setFlashdata('new_env', $environment === CredentialModel::ENV_PRODUCTION ? 'Production' : 'Development');
-
-        return redirect()->to(base_url('participants/' . $id));
     }
 
     public function update(int $id)

@@ -10,6 +10,7 @@ class ParticipantModel extends Model
     protected $primaryKey = 'id';
 
     protected $allowedFields = [
+        'user_id',
         'name', 'email', 'phone', 'country', 'trn', 'trade_license',
         'legal_form', 'tin_id', 'address_line1', 'address_line2',
         'city', 'emirate', 'postal_zone', 'peppol_scheme', 'peppol_id', 'peppol_participant_id',
@@ -34,6 +35,14 @@ class ParticipantModel extends Model
     public function getActive()
     {
         return $this->where('status !=', self::STATUS_DELETED)->findAll();
+    }
+
+    public function getByUser(int $userId): array
+    {
+        return $this->where('user_id', $userId)
+                    ->where('status !=', self::STATUS_DELETED)
+                    ->orderBy('name', 'ASC')
+                    ->findAll();
     }
 
     /**

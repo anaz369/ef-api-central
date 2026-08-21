@@ -59,7 +59,18 @@ $routes->get('users/create',                   'Admin\Users::create');
 $routes->post('users/create',                  'Admin\Users::create');
 $routes->get('users/(:num)',                   'Admin\Users::view/$1');
 $routes->post('users/(:num)/update',           'Admin\Users::update/$1');
-$routes->post('users/(:num)/reset-password',   'Admin\Users::resetPassword/$1');
+$routes->post('users/(:num)/reset-password',                       'Admin\Users::resetPassword/$1');
+$routes->post('users/(:num)/generate-credentials',             'Admin\Users::generateCredentials/$1');
+$routes->post('users/(:num)/credentials/(:num)/approve',       'Admin\Users::approveCredential/$1/$2');
+$routes->post('users/(:num)/credentials/(:num)/reject',        'Admin\Users::rejectCredential/$1/$2');
+
+// API Keys (user-facing self-service)
+$routes->get('apikeys',              'ApiKeys::index');
+$routes->post('apikeys/request',     'ApiKeys::request');
+$routes->post('apikeys/(:num)/revoke', 'ApiKeys::revoke/$1');
+
+// API Catalog (authenticated, all users)
+$routes->get('api-catalog', 'ApiCatalog::index');
 
 // API (public — no auth guard, token-based)
 $routes->post('api/auth/token',  'Api\Auth::token');
@@ -71,6 +82,9 @@ $routes->get('invoices/(:num)',  'Admin\Invoices::view/$1');
 
 // API Logs (Admin)
 $routes->get('logs',             'Admin\ApiLogs::index');
+
+// Peppol webhook (called by phase4 AS4 engine on inbound invoice)
+$routes->post('peppol/webhook', 'Peppol\Webhook::receive');
 
 // UAE FTA Onboarding (public — no auth, FTA redirects with ?authcode=XXX)
 $routes->get('uae/onboard',                  'Uae\Onboarding::onboard');
@@ -87,7 +101,6 @@ $routes->get('participants/lookup-peppol',                     'Admin\Participan
 $routes->get('participants/(:num)',                            'Admin\Participants::view/$1');
 $routes->post('participants/(:num)/update',                    'Admin\Participants::update/$1');
 $routes->post('participants/(:num)/delete',                    'Admin\Participants::delete/$1');
-$routes->post('participants/(:num)/generate-credentials',      'Admin\Participants::generateCredentials/$1');
 $routes->post('participants/(:num)/status',                    'Admin\Participants::updateStatus/$1');
 $routes->post('participants/(:num)/grant-production',          'Admin\Participants::grantProduction/$1');
 $routes->post('participants/(:num)/link-peppol',               'Admin\Participants::linkPeppol/$1');

@@ -14,10 +14,8 @@ $statusInfo = $statusMap[$participant['status']] ?? ['Unknown','gray'];
 // ── Onboarding completion steps ──────────────────────────────────────────
 $steps = [
   ['icon' => 'M5 13l4 4L19 7',                                         'label' => 'Account Created',           'sub' => 'Participant registered in system',       'done' => true],
-  ['icon' => 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.77-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4', 'label' => 'Development Credentials',   'sub' => 'Test API keys issued',                  'done' => $dev_cred !== null],
   ['icon' => 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', 'label' => 'Tax ID Verified',           'sub' => 'TRN / TIN validated',                   'done' => (bool)$participant['tin_verified']],
   ['icon' => 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', 'label' => 'Production Access Granted', 'sub' => 'Payment confirmed, live access unlocked', 'done' => (bool)$participant['production_access']],
-  ['icon' => 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z', 'label' => 'Production Credentials',   'sub' => 'Live API keys issued',                  'done' => $prod_cred !== null],
   ['icon' => 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9', 'label' => 'Peppol ID Registered',     'sub' => 'SMP registration complete',             'done' => (bool)$participant['peppol_verified'] || ($peppol_info !== null && $peppol_info['status'] === 'active')],
 ];
 $doneCount  = count(array_filter($steps, fn($s) => $s['done']));
@@ -60,26 +58,6 @@ foreach ($steps as $i => $s) { if (!$s['done']) { $nextIdx = $i; break; } }
 <?php endif; ?>
 <?php if (session()->getFlashdata('error')): ?>
 <div class="alert alert-danger" style="margin-bottom:16px"><?= session()->getFlashdata('error') ?></div>
-<?php endif; ?>
-
-<?php if ($new_secret): ?>
-<div class="alert" style="background:var(--green-lt,#ecfdf5);border:1px solid var(--green,#22c55e);border-radius:var(--radius);padding:1.25rem;margin-bottom:16px">
-  <div style="font-weight:600;margin-bottom:.5rem;color:var(--green)">
-    <?= htmlspecialchars($new_env) ?> credentials generated — copy the secret now, it will not be shown again.
-  </div>
-  <div style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.06);padding:.75rem 1rem;border-radius:6px;">
-    <span style="font-family:monospace;font-size:.9rem;word-break:break-all;flex:1">
-      <strong>Client Secret:</strong> <?= htmlspecialchars($new_secret) ?>
-    </span>
-    <button type="button" class="btn btn-sm"
-            style="flex-shrink:0;background:var(--green);color:#fff;border-color:transparent"
-            data-copy="<?= htmlspecialchars($new_secret) ?>"
-            title="Copy secret">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-      Copy
-    </button>
-  </div>
-</div>
 <?php endif; ?>
 
 <!-- ── Row 1: Avatar summary + Company details ───────────────────────── -->
@@ -239,6 +217,19 @@ $peppolStatusInfo = $peppol_info ? ($peppolStatusMap[$peppol_info['status']] ?? 
   </div>
 </div>
 
+<!-- ── Managing user info ─────────────────────────────────────────────── -->
+<?php if ($managing_user): ?>
+<div class="alert" style="margin-top:16px;padding:12px 16px;border-radius:8px;background:var(--bg-surface2,#f8f9fa);border:1px solid var(--border-color-light);display:flex;align-items:center;gap:12px;">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  <span style="font-size:13px;color:var(--text-muted);">
+    API credentials for this participant are managed under user account
+    <strong><?= htmlspecialchars($managing_user['name']) ?></strong>
+    (<?= htmlspecialchars($managing_user['email']) ?>).
+  </span>
+  <a href="<?= base_url('users/' . $managing_user['id']) ?>" class="btn btn-secondary btn-sm" style="margin-left:auto;flex-shrink:0;">View User</a>
+</div>
+<?php endif; ?>
+
 <!-- ── Row 2: Completion timeline ────────────────────────────────────── -->
 <div id="completion-steps" class="card" style="margin-top:16px">
   <div class="card-header">
@@ -288,137 +279,6 @@ $peppolStatusInfo = $peppol_info ? ($peppolStatusMap[$peppol_info['status']] ?? 
   </div>
 </div>
 
-<!-- ── Row 3: API Credentials ─────────────────────────────────────────── -->
-<div class="row col-2" style="margin-top:16px" id="credentials">
-
-  <!-- Development credentials -->
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Development Credentials</div>
-        <div class="card-subtitle">For Peppol testbed &amp; integration testing</div>
-      </div>
-      <span class="status status-blue">Testbed</span>
-    </div>
-    <div class="card-body">
-      <?php if ($dev_cred): ?>
-        <div class="form-group">
-          <label class="form-label">Client ID</label>
-          <div style="display:flex;gap:6px;">
-            <input type="text" class="form-control" id="dev-client-id"
-                   value="<?= htmlspecialchars($dev_cred['client_id']) ?>"
-                   readonly style="font-family:monospace;font-size:.82rem;">
-            <button type="button" class="btn btn-ghost btn-sm"
-                    data-copy="<?= htmlspecialchars($dev_cred['client_id']) ?>"
-                    title="Copy Client ID">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Client Secret</label>
-          <input type="text" class="form-control"
-                 value="<?= htmlspecialchars($dev_cred['client_secret_preview']) ?>"
-                 readonly style="font-family:monospace;color:var(--text-muted);">
-          <small class="form-hint">Hashed — last 6 chars shown for identification only.</small>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-          <span style="font-size:12px;color:var(--text-muted)">
-            Last used: <?= $dev_cred['last_used_at'] ? date('d M Y H:i', strtotime($dev_cred['last_used_at'])) : 'Never' ?>
-          </span>
-          <form method="post" action="<?= base_url('participants/' . $participant['id'] . '/generate-credentials') ?>">
-            <?= csrf_field() ?>
-            <input type="hidden" name="environment" value="0">
-            <button type="button" class="btn btn-ghost btn-sm"
-                    onclick="if(confirm('This will revoke the existing development credentials. Continue?')) this.closest('form').submit()">
-              Regenerate
-            </button>
-          </form>
-        </div>
-      <?php else: ?>
-        <div style="padding:1.5rem 0;text-align:center;color:var(--text-muted);">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="opacity:.4;margin-bottom:.75rem;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.77-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-          <p style="font-size:.9rem;margin-bottom:1rem;">No development credentials yet.</p>
-          <form method="post" action="<?= base_url('participants/' . $participant['id'] . '/generate-credentials') ?>">
-            <?= csrf_field() ?>
-            <input type="hidden" name="environment" value="0">
-            <button type="button" class="btn btn-primary"
-                    onclick="this.closest('form').submit()">Generate Dev Credentials</button>
-          </form>
-        </div>
-      <?php endif; ?>
-    </div>
-  </div>
-
-  <!-- Production credentials -->
-  <div class="card" <?= !$participant['production_access'] ? 'style="opacity:.5;pointer-events:none;"' : '' ?>>
-    <div class="card-header">
-      <div>
-        <div class="card-title">Production Credentials</div>
-        <div class="card-subtitle">For the live Peppol network</div>
-      </div>
-      <?php if ($participant['production_access']): ?>
-        <span class="status status-green">Live</span>
-      <?php else: ?>
-        <span class="status status-gray">Locked</span>
-      <?php endif; ?>
-    </div>
-    <div class="card-body">
-      <?php if (!$participant['production_access']): ?>
-        <div style="padding:1.5rem 0;text-align:center;color:var(--text-muted);">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="opacity:.4;margin-bottom:.75rem;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-          <p style="font-size:.9rem;">Grant production access first to unlock credentials.</p>
-        </div>
-      <?php elseif ($prod_cred): ?>
-        <div class="form-group">
-          <label class="form-label">Client ID</label>
-          <div style="display:flex;gap:6px;">
-            <input type="text" class="form-control"
-                   value="<?= htmlspecialchars($prod_cred['client_id']) ?>"
-                   readonly style="font-family:monospace;font-size:.82rem;">
-            <button type="button" class="btn btn-ghost btn-sm"
-                    data-copy="<?= htmlspecialchars($prod_cred['client_id']) ?>"
-                    title="Copy Client ID">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Client Secret</label>
-          <input type="text" class="form-control"
-                 value="<?= htmlspecialchars($prod_cred['client_secret_preview']) ?>"
-                 readonly style="font-family:monospace;color:var(--text-muted);">
-          <small class="form-hint">Hashed — last 6 chars shown for identification only.</small>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-          <span style="font-size:12px;color:var(--text-muted)">
-            Last used: <?= $prod_cred['last_used_at'] ? date('d M Y H:i', strtotime($prod_cred['last_used_at'])) : 'Never' ?>
-          </span>
-          <form method="post" action="<?= base_url('participants/' . $participant['id'] . '/generate-credentials') ?>">
-            <?= csrf_field() ?>
-            <input type="hidden" name="environment" value="1">
-            <button type="button" class="btn btn-ghost btn-sm"
-                    onclick="if(confirm('This will revoke the existing production credentials. Continue?')) this.closest('form').submit()">
-              Regenerate
-            </button>
-          </form>
-        </div>
-      <?php else: ?>
-        <div style="padding:1.5rem 0;text-align:center;color:var(--text-muted);">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="opacity:.4;margin-bottom:.75rem;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.77-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-          <p style="font-size:.9rem;margin-bottom:1rem;">Production access granted. Generate credentials now.</p>
-          <form method="post" action="<?= base_url('participants/' . $participant['id'] . '/generate-credentials') ?>">
-            <?= csrf_field() ?>
-            <input type="hidden" name="environment" value="1">
-            <button type="button" class="btn btn-primary"
-                    onclick="this.closest('form').submit()">Generate Prod Credentials</button>
-          </form>
-        </div>
-      <?php endif; ?>
-    </div>
-  </div>
-
-</div>
 
 <script type="module">
 import { t as showToast } from '<?= base_url('assets/js/toast-CBtjS_PZ.js') ?>';

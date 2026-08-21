@@ -56,13 +56,19 @@
 
     <div class="nav-group">
       <div class="nav-label">Developer</div>
+      <?php if ((int)(session()->get('type')) !== 1): ?>
       <a class="nav-link <?= ($active_menu === 'apikeys') ? 'active' : '' ?>" href="<?= base_url('apikeys') ?>">
         <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
         <span class="nav-text">API Keys</span>
       </a>
+      <?php endif; ?>
       <a class="nav-link <?= ($active_menu === 'logs') ? 'active' : '' ?>" href="<?= base_url('logs') ?>">
         <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         <span class="nav-text">API Logs</span>
+      </a>
+      <a class="nav-link <?= ($active_menu === 'api_catalog') ? 'active' : '' ?>" href="<?= base_url('api-catalog') ?>">
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+        <span class="nav-text">API Catalog</span>
       </a>
     </div>
 

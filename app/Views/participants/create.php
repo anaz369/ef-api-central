@@ -104,6 +104,19 @@
         </div>
 
         <div class="form-group">
+          <label class="form-label">Managed by User <span style="color:var(--text-muted);font-weight:400;font-size:12px;">(optional — leave blank if Ethicfin manages directly)</span></label>
+          <select name="user_id" id="f_user_id" class="form-control">
+            <option value="">— Ethicfin managed (no user) —</option>
+            <?php foreach (($users ?? []) as $u): ?>
+            <option value="<?= $u['id'] ?>" <?= old('user_id') == $u['id'] ? 'selected' : '' ?>>
+              <?= htmlspecialchars($u['name']) ?><?= $u['company_name'] ? ' (' . htmlspecialchars($u['company_name']) . ')' : '' ?>
+            </option>
+            <?php endforeach; ?>
+          </select>
+          <small class="form-hint">Select the ERP or client user who will manage this participant's invoices.</small>
+        </div>
+
+        <div class="form-group">
           <label class="form-label">Integration Mode</label>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
             <label class="form-check" style="border:1px solid var(--border-color);padding:14px 16px;border-radius:var(--radius-sm);cursor:pointer;" id="mode-self-card">

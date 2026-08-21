@@ -99,9 +99,9 @@
                 <div class="col-md-5">
                     <label class="form-label">TIN (Tax Identifier Number) <span class="text-danger">*</span></label>
                     <?php if (($mode ?? 'onboard') === 'reverify'): ?>
-                    <input type="text" id="inp-tin" class="form-control" value="<?= htmlspecialchars($tin ?? '') ?>" disabled>
+                    <input type="text" id="inp-tin" class="form-control" value="<?= htmlspecialchars($tin ?? '') ?>" disabled maxlength="10">
                     <?php else: ?>
-                    <input type="text" id="inp-tin" class="form-control">
+                    <input type="text" id="inp-tin" class="form-control" maxlength="10">
                     <?php endif; ?>
                 </div>
                 <?php if (($mode ?? 'onboard') === 'reverify'): ?>
@@ -226,8 +226,8 @@ function doVerify() {
         showVerifyError('Please enter your TIN and Email address.');
         return;
     }
-    if (!/^\d{15}$/.test(tin)) {
-        showVerifyError('TIN must be exactly 15 digits.');
+    if (!/^\d{10}$/.test(tin)) {
+        showVerifyError('TIN must be exactly 10 digits.');
         return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

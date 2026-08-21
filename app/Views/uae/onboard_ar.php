@@ -100,9 +100,9 @@
                 <div class="col-md-5">
                     <label class="form-label">رقم التعريف الضريبي (TIN) <span class="text-danger">*</span></label>
                     <?php if (($mode ?? 'onboard') === 'reverify'): ?>
-                    <input type="text" id="inp-tin" class="form-control" value="<?= htmlspecialchars($tin ?? '') ?>" disabled>
+                    <input type="text" id="inp-tin" class="form-control" value="<?= htmlspecialchars($tin ?? '') ?>" disabled maxlength="10">
                     <?php else: ?>
-                    <input type="text" id="inp-tin" class="form-control">
+                    <input type="text" id="inp-tin" class="form-control" maxlength="10">
                     <?php endif; ?>
                 </div>
                 <?php if (($mode ?? 'onboard') === 'reverify'): ?>
@@ -228,8 +228,8 @@ function doVerify() {
         showVerifyError('يرجى إدخال رقم التعريف الضريبي وعنوان البريد الإلكتروني.');
         return;
     }
-    if (!/^\d{15}$/.test(tin)) {
-        showVerifyError('يجب أن يتكون رقم التعريف الضريبي (TIN) من 15 رقماً بالضبط.');
+    if (!/^\d{10}$/.test(tin)) {
+        showVerifyError('يجب أن يتكون رقم التعريف الضريبي (TIN) من 10 أرقام بالضبط.');
         return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

@@ -5,12 +5,10 @@ namespace App\Controllers\Api;
 use App\Models\InvoiceModel;
 use App\Models\InvoiceTransmissionModel;
 use App\Models\ParticipantModel;
+use App\Services\PeppolService;
 
 class Invoices extends BaseApiController
 {
-    // URL of send_peppol.php — change for production deployment
-    private const SEND_PEPPOL_URL = 'http://localhost:8888/peppol/send_peppol.php';
-
     // PINT AE supported modes only (no mode 2 — debit note not in PINT AE)
     private const VALID_MODES = [
         1 => 'invoice',           // InvoiceTypeCode 380
@@ -30,6 +28,7 @@ class Invoices extends BaseApiController
     private InvoiceModel             $invoiceModel;
     private InvoiceTransmissionModel $transmissionModel;
     private ParticipantModel         $participantModel;
+    private PeppolService            $peppolService;
 
     public function __construct()
     {
@@ -37,6 +36,7 @@ class Invoices extends BaseApiController
         $this->invoiceModel      = new InvoiceModel();
         $this->transmissionModel = new InvoiceTransmissionModel();
         $this->participantModel  = new ParticipantModel();
+        $this->peppolService     = new PeppolService();
     }
 
     /**
@@ -106,9 +106,9 @@ class Invoices extends BaseApiController
             return $this->jsonError('UNAUTHORIZED', 'Valid Bearer token required.', 401);
         }
 
-        $participantId = (int) $tokenRow['participant_id'];
-        $environment   = (int) $tokenRow['environment'];
-        $credentialId  = (int) $tokenRow['credential_id'];
+        $userId       = (int) $tokenRow['user_id'];
+        $environment  = (int) $tokenRow['environment'];
+        $credentialId = (int) $tokenRow['credential_id'];
 
         $body = $this->request->getJSON(true) ?? [];
 
@@ -116,7 +116,7 @@ class Invoices extends BaseApiController
         $mode = (int) ($body['mode'] ?? 0);
         if (!array_key_exists($mode, self::VALID_MODES)) {
             $resp = ['error' => 'invalid_mode'];
-            $this->logRequest($participantId, $credentialId, '/api/invoices', 'POST', $body, $resp, 422, $environment, 0);
+            $this->logRequest($userId, null, $credentialId, '/api/invoices', 'POST', $body, $resp, 422, $environment, 0);
             return $this->jsonError(
                 'INVALID_MODE',
                 'mode must be 1 (invoice), 3 (credit_note), 4 (sb_invoice), or 5 (sb_credit_note).',
@@ -125,63 +125,79 @@ class Invoices extends BaseApiController
         }
 
         // ── 3. Validate required fields ──────────────────────────────────────
+        if (empty($body['sender_peppol_id'])) {
+            $this->logRequest($userId, null, $credentialId, '/api/invoices', 'POST', $body, ['error' => 'missing sender_peppol_id'], 422, $environment, 0);
+            return $this->jsonError('VALIDATION_ERROR', 'sender_peppol_id is required.', 422);
+        }
+
         foreach (['basicdetails', 'location', 'customer_details', 'itemdetails'] as $field) {
             if (empty($body[$field])) {
-                $this->logRequest($participantId, $credentialId, '/api/invoices', 'POST', $body, ['error' => "missing $field"], 422, $environment, 0);
+                $this->logRequest($userId, null, $credentialId, '/api/invoices', 'POST', $body, ['error' => "missing $field"], 422, $environment, 0);
                 return $this->jsonError('VALIDATION_ERROR', "Missing required field: {$field}.", 422);
             }
         }
 
-        // receiver_peppol_id required for invoice & credit note
         if (in_array($mode, [1, 3]) && empty($body['receiver_peppol_id'])) {
             return $this->jsonError('VALIDATION_ERROR', 'receiver_peppol_id is required for invoice and credit note.', 422);
         }
 
-        // receiver_scheme required for self-billing
         if (in_array($mode, [4, 5]) && empty($body['receiver_scheme'])) {
             return $this->jsonError('VALIDATION_ERROR', 'receiver_scheme is required for self-billing documents.', 422);
         }
 
-        // canceled_invoice_number required for credit notes
         if (in_array($mode, [3, 5]) && empty($body['canceled_invoice_number'])) {
             return $this->jsonError('VALIDATION_ERROR', 'canceled_invoice_number is required for credit notes.', 422);
         }
 
-        // ── 4. Inject tknd from participant TRN ──────────────────────────────
-        $participant   = $this->participantModel->find($participantId);
-        $body['tknd']  = $participant['trn'] ?? 'api_central';
+        // ── 4. Load participant by sender_peppol_id (must belong to this user) ──
+        $senderPeppolId = trim($body['sender_peppol_id']);
+        $participant = $this->participantModel
+            ->where('peppol_id', $senderPeppolId)
+            ->where('user_id', $userId)
+            ->first();
 
-        // ── 5. Forward to send_peppol.php ────────────────────────────────────
-        $sendResponse = $this->forwardToSendPeppol($body);
+        if (!$participant) {
+            $this->logRequest($userId, null, $credentialId, '/api/invoices', 'POST', $body, ['error' => 'sender_not_found'], 404, $environment, 0);
+            return $this->jsonError('SENDER_NOT_FOUND', 'No participant found for sender_peppol_id under your account.', 404);
+        }
 
-        $success  = ($sendResponse['status'] ?? '') === 'success';
+        $participantId = (int) $participant['id'];
+
+        // ── 5. Send via PeppolService ────────────────────────────────────────
+        try {
+            $sendResult = $this->peppolService->send($body, $participant);
+        } catch (\RuntimeException $e) {
+            log_message('error', 'PeppolService error: ' . $e->getMessage());
+            return $this->jsonError('BUILD_ERROR', $e->getMessage(), 422);
+        }
+
+        $success  = !empty($sendResult['success']);
         $txStatus = $success ? InvoiceModel::TX_SENT : InvoiceModel::TX_FAILED;
 
         // ── 6. Store invoice in DB ───────────────────────────────────────────
-        $basic   = $body['basicdetails'][0]    ?? [];
-        $cust    = $body['customer_details'][0] ?? [];
+        $basic = $body['basicdetails'][0]    ?? [];
+        $cust  = $body['customer_details'][0] ?? [];
 
-        // Derive totals from line items (sum of quantity × price + vat)
-        $subtotal   = 0;
-        $taxAmount  = 0;
+        $subtotal  = 0;
+        $taxAmount = 0;
         foreach (($body['itemdetails'] ?? []) as $line) {
-            $lineAmt   = (float)($line['quantity'] ?? 0) * (float)($line['price'] ?? 0);
-            $lineTax   = $lineAmt * ((float)($line['vat_perc'] ?? 0) / 100);
+            $lineAmt   = (float) ($line['quantity'] ?? 0) * (float) ($line['price'] ?? 0);
+            $lineTax   = $lineAmt * ((float) ($line['vat_perc'] ?? 0) / 100);
             $subtotal  += $lineAmt;
             $taxAmount += $lineTax;
         }
         $total = $subtotal + $taxAmount;
 
-        // Supplier info comes from the authenticated participant
         $supplierPeppolId = $participant['peppol_id'] ?? null;
         $supplierName     = $participant['name']      ?? null;
 
-        // Receiver (buyer for modes 1/3, actual supplier for modes 4/5)
-        $buyerName      = $cust['VAT_name'] ?? null;
-        $buyerPeppolId  = $body['receiver_peppol_id'] ?? null;
+        $buyerName     = $cust['VAT_name'] ?? null;
+        $buyerPeppolId = $body['receiver_peppol_id'] ?? null;
         if (!$buyerPeppolId && !empty($body['receiver_scheme'])) {
             $buyerPeppolId = $body['receiver_scheme'] . ':' . ($cust['VAT_number'] ?? '');
         }
+
+        $rawXml = $sendResult['invoice']['xml'] ?? null;
 
         $this->invoiceModel->insert([
             'participant_id'      => $participantId,
@@ -201,7 +217,8 @@ class Invoices extends BaseApiController
             'total'               => round($total, 2),
             'transmission_status' => $txStatus,
             'status'              => InvoiceModel::STATUS_ACTIVE,
-            'raw_xml'             => $sendResponse['data']['xml'] ?? null,
+            'xml_file_path'       => $sendResult['invoice']['xml_filepath'] ?? null,
+            'raw_xml'             => $rawXml,
         ]);
 
         $invoiceId = $this->invoiceModel->getInsertID();
@@ -218,14 +235,14 @@ class Invoices extends BaseApiController
             $this->transmissionModel->addEvent(
                 $invoiceId,
                 InvoiceTransmissionModel::EVENT_SUBMITTED,
-                $sendResponse['message'] ?? 'Submitted to Peppol network.',
+                'Submitted to Peppol network via phase4.',
                 InvoiceTransmissionModel::LEVEL_SUCCESS
             );
         } else {
             $this->transmissionModel->addEvent(
                 $invoiceId,
                 InvoiceTransmissionModel::EVENT_FAILED,
-                $sendResponse['message'] ?? 'Submission failed.',
+                $sendResult['error'] ?? 'Peppol submission failed.',
                 InvoiceTransmissionModel::LEVEL_ERROR
             );
         }
@@ -236,10 +253,11 @@ class Invoices extends BaseApiController
             'invoice_number' => $basic['inv_no'] ?? '',
             'mode'           => $mode,
             'status'         => $success ? 'sent' : 'failed',
-            'peppol_response' => $sendResponse,
+            'peppol_response' => $sendResult,
         ];
 
         $this->logRequest(
+            $userId,
             $participantId,
             $credentialId,
             '/api/invoices',
@@ -254,37 +272,11 @@ class Invoices extends BaseApiController
         if (!$success) {
             return $this->jsonError(
                 'PEPPOL_ERROR',
-                $sendResponse['message'] ?? 'Peppol transmission failed.',
+                $sendResult['error'] ?? 'Peppol transmission failed.',
                 502
             );
         }
 
         return $this->jsonSuccess($responseData, 201);
-    }
-
-    /**
-     * Forward the invoice data payload to send_peppol.php.
-     * Wraps as {"invoice": {"data": $data}} — same format as sentInvoice2() in Welcome.php.
-     */
-    private function forwardToSendPeppol(array $data): array
-    {
-        $ch = curl_init(self::SEND_PEPPOL_URL);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 60,
-            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST  => 'POST',
-            CURLOPT_POSTFIELDS     => json_encode(['invoice' => ['data' => $data]]),
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-        ]);
-
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        if ($response === false) {
-            return ['status' => 'error', 'message' => 'Could not reach Peppol sender service.'];
-        }
-
-        return json_decode($response, true) ?? ['status' => 'error', 'message' => 'Invalid response from sender service.'];
     }
 }

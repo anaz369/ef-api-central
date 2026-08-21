@@ -48,6 +48,7 @@ class BaseApiController extends Controller
     }
 
     protected function logRequest(
+        ?int   $userId,
         ?int   $participantId,
         ?int   $credentialId,
         string $endpoint,
@@ -59,6 +60,7 @@ class BaseApiController extends Controller
         int    $status = 1
     ): void {
         $this->logModel->record([
+            'user_id'        => $userId,
             'participant_id' => $participantId,
             'credential_id'  => $credentialId,
             'endpoint'       => $endpoint,
